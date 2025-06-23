@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>7-Day Dumbbell Domination</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Roboto+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Earthy Fitness -->
+    <!-- Application Structure Plan: The application is structured as a tabbed interface with two main views: "Workouts" and "Info". The "Workouts" view features a primary navigation bar for selecting the day (1-7), which dynamically displays the corresponding exercises in a card-based grid. The "Info" view contains supplementary content like key principles and warm-up/cool-down instructions. This structure was chosen to prioritize the user's primary task—viewing today's workout—while keeping the interface clean. Secondary, but important, reference information is organized separately but remains easily accessible, preventing cognitive overload and improving usability. New LLM features are integrated directly into the workout cards and a global button to provide contextual information and motivation. A new theme toggle allows users to switch between light and dark modes, enhancing accessibility and user preference. -->
+    <!-- Visualization & Content Choices: Report Info -> Goal -> Viz/Presentation Method -> Interaction -> Justification -> Library/Method. 1. Daily Workouts -> Inform & Guide -> HTML Card Grid -> Click day button to show workout -> Cards are a clear, scannable way to present distinct exercise info; daily nav is intuitive -> HTML/Tailwind/JS. 2. Key numbers (weights, reps, sets) -> Emphasize -> Styled Text (bold, color) -> N/A (static display) -> Important parameters should stand out visually for quick reference without needing complex charts -> HTML/Tailwind. 3. Key Principles/Warm-up -> Educate & Contextualize -> Tabbed Content Section -> Click tab to switch view -> Separates primary workout task from secondary reference info, reducing clutter -> HTML/Tailwind/JS. 4. Exercise Explanation -> Clarify & Detail -> Modal with LLM generated text -> Click "Explain" button on exercise card -> Provides on-demand, rich context without cluttering the main display -> Gemini API. 5. Fitness Tip/Motivation -> Engage & Motivate -> Text display area -> Click "Get a Tip" button -> Offers quick, refreshing insights or encouragement -> Gemini API. 6. Theme Switching -> User Preference/Accessibility -> Toggle button -> Click to switch between light/dark modes -> Improves user experience and accommodates varying lighting conditions -> HTML/Tailwind/JS. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .font-mono { font-family: 'Roboto Mono', monospace; }
+        .tab-btn.active {
+            border-color: #ca8a04; /* yellow-600 */
+            background-color: #fefce8; /* yellow-50 */
+            color: #ca8a04; /* yellow-600 */
+        }
+        .day-btn.active {
+            background-color: #ca8a04; /* yellow-600 */
+            color: #ffffff;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 100;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-content {
+            background-color: #fefefe;
+            margin: auto;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            max-width: 90%;
+            width: 500px;
+            position: relative;
+        }
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+        .close-button:hover,
+        .close-button:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        /* Dark mode specific styles */
+        .dark-mode {
+            background-color: #1c1917; /* stone-900 */
+            color: #d6d3d1; /* stone-200 */
+        }
+        .dark-mode .text-stone-900 { color: #f5f5f4; /* stone-100 */ }
+        .dark-mode .text-stone-600 { color: #a8a29e; /* stone-400 */ }
+        .dark-mode .text-stone-700 { color: #d6d3d1; /* stone-200 */ }
+        .dark-mode .text-stone-500 { color: #78716c; /* stone-500 */ }
+        .dark-mode .bg-white { background-color: #292524; /* stone-800 */ }
+        .dark-mode .shadow { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.2); }
+        .dark-mode .tab-btn { color: #d6d3d1; border-color: transparent; }
+        .dark-mode .tab-btn.active {
+            border-color: #ca8a04;
+            background-color: #44403c; /* stone-700 */
+            color: #fefce8;
+        }
+        .dark-mode .day-btn {
+            background-color: #292524; /* stone-800 */
+            color: #d6d3d1;
+        }
+        .dark-mode .day-btn.active {
+            background-color: #ca8a04;
+            color: #ffffff;
+        }
+        .dark-mode .bg-gray-200 { background-color: #44403c; /* stone-700 */ }
+        .dark-mode .hover\:bg-gray-300:hover { background-color: #57534e; /* stone-600 */ }
+        .dark-mode .text-gray-800 { color: #f5f5f4; }
+        .dark-mode .modal-content {
+            background-color: #292524; /* stone-800 */
+            color: #d6d3d1;
+        }
+        .dark-mode .close-button { color: #78716c; }
+        .dark-mode .close-button:hover,
+        .dark-mode .close-button:focus { color: #f5f5f4; }
+    </style>
+</head>
+<body class="bg-stone-50 text-stone-800 transition-colors duration-300">
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+        <header class="text-center mb-8 md:mb-12 relative">
+            <h1 class="text-4xl md:text-5xl font-bold text-stone-900">7-Day Dumbbell Domination</h1>
+            <p class="mt-2 md:mt-4 text-lg text-stone-600 max-w-3xl mx-auto">Your optimized weekly workout plan. Use the tabs to switch between your daily workouts and the core training principles.</p>
+            <div class="absolute top-0 right-0 mt-4 mr-4">
+                <button id="theme-toggle" class="bg-gray-200 dark:bg-stone-700 text-gray-800 dark:text-stone-100 font-bold py-2 px-4 rounded-full shadow-md transition-colors duration-300">
+                    <span id="theme-icon">☀️</span> <span class="hidden sm:inline" id="theme-text">Day Mode</span>
+                </button>
+            </div>
+        </header>
+
+        <div class="w-full">
+            <div class="mb-8 border-b border-stone-200 dark:border-stone-700">
+                <nav class="flex space-x-2 sm:space-x-4" aria-label="Tabs">
+                    <button data-tab-target="workouts" class="tab-btn active text-sm sm:text-base font-semibold text-stone-600 hover:text-yellow-600 py-3 px-3 sm:px-6 border-b-2 border-transparent transition-colors duration-200">Workouts</button>
+                    <button data-tab-target="info" class="tab-btn text-sm sm:text-base font-semibold text-stone-600 hover:text-yellow-600 py-3 px-3 sm:px-6 border-b-2 border-transparent transition-colors duration-200">Principles & Info</button>
+                </nav>
+            </div>
+
+            <main>
+                <div id="workouts" class="tab-content">
+                    <div class="text-center mb-8">
+                        <p class="text-stone-600 mb-4">Select a day to view your workout plan.</p>
+                        <div id="day-nav" class="flex flex-wrap justify-center gap-2 sm:gap-3 mb-6">
+                            <button data-day-target="1" class="day-btn text-sm sm:text-base font-semibold py-2 px-4 rounded-full bg-white text-stone-700 shadow-sm hover:bg-yellow-100 transition-all duration-200">Day 1</button>
+                            <button data-day-target="2" class="day-btn text-sm sm:text-base font-semibold py-2 px-4 rounded-full bg-white text-stone-700 shadow-sm hover:bg-yellow-100 transition-all duration-200">Day 2</button>
+                            <button data-day-target="3" class="day-btn text-sm sm:text-base font-semibold py-2 px-4 rounded-full bg-white text-stone-700 shadow-sm hover:bg-yellow-100 transition-all duration-200">Day 3</button>
+                            <button data-day-target="4" class="day-btn text-sm sm:text-base font-semibold py-2 px-4 rounded-full bg-white text-stone-700 shadow-sm hover:bg-yellow-100 transition-all duration-200">Day 4</button>
+                            <button data-day-target="5" class="day-btn text-sm sm:text-base font-semibold py-2 px-4 rounded-full bg-white text-stone-700 shadow-sm hover:bg-yellow-100 transition-all duration-200">Day 5</button>
+                            <button data-day-target="6" class="day-btn text-sm sm:text-base font-semibold py-2 px-4 rounded-full bg-white text-stone-700 shadow-sm hover:bg-yellow-100 transition-all duration-200">Day 6</button>
+                            <button data-day-target="7" class="day-btn text-sm sm:text-base font-semibold py-2 px-4 rounded-full bg-white text-stone-700 shadow-sm hover:bg-yellow-100 transition-all duration-200">Day 7</button>
+                        </div>
+                        <button id="get-tip-btn" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-6 rounded-full shadow-lg transition-colors duration-300 mb-6">✨ Get a Tip</button>
+                        <p id="fitness-tip-display" class="text-stone-700 mt-4 max-w-xl mx-auto italic"></p>
+                    </div>
+
+                    <div id="day-content-container" class="mt-8">
+                        <!-- Day 1 Content -->
+                        <div id="day1" class="day-content">
+                            <h2 class="text-2xl font-bold text-center mb-2">Day 1: Upper Body Push & Pull Power</h2>
+                            <p class="text-center text-stone-600 mb-6"><strong>Equipment:</strong> Two 10kg dumbbells. Load one to <span class="font-bold text-yellow-700">18kg</span> for Single-Arm Rows.</p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">1. Dumbbell Floor Press</h3><p class="text-sm text-stone-500 mb-3">Chest & Triceps</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Sets:</span> 4</li><li><span class="font-semibold text-stone-700">Reps:</span> 12-15</li><li><span class="font-semibold text-stone-700">Tempo:</span> 3-1-1-0</li></ul><p class="text-sm text-stone-600 flex-grow">Lie on your back, knees bent, feet flat. Press two 10kg dumbbells straight up from your chest.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Dumbbell Floor Press">✨ Explain</button></div>
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">2. Single-Arm Dumbbell Rows</h3><p class="text-sm text-stone-500 mb-3">Back & Biceps</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Weight:</span> 18kg</li><li><span class="font-semibold text-stone-700">Sets:</span> 4</li><li><span class="font-semibold text-stone-700">Reps:</span> 8-12 / arm</li><li><span class="font-semibold text-stone-700">Tempo:</span> 3-0-1-0</li></ul><p class="text-sm text-stone-600 flex-grow">Place one hand and knee on a bench/chair, back flat. Row the dumbbell towards your hip, squeezing your shoulder blade.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Single-Arm Dumbbell Rows">✨ Explain</button></div>
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">3. Dumbbell Flyes</h3><p class="text-sm text-stone-500 mb-3">Chest</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Sets:</span> 3</li><li><span class="font-semibold text-stone-700">Reps:</span> 15-20</li><li><span class="font-semibold text-stone-700">Tempo:</span> 3-0-1-0</li></ul><p class="text-sm text-stone-600 flex-grow">Lie on your back, arms extended above chest with a slight bend in elbows. Lower two 10kg dumbbells out to the sides in an arc.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Dumbbell Flyes">✨ Explain</button></div>
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">4. Standing Overhead Press</h3><p class="text-sm text-stone-500 mb-3">Shoulders & Triceps</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Sets:</span> 3</li><li><span class="font-semibold text-stone-700">Reps:</span> 10-15</li><li><span class="font-semibold text-stone-700">Tempo:</span> 2-0-1-0</li></ul><p class="text-sm text-stone-600 flex-grow">Stand tall, core braced, dumbbells at shoulder height. Press two 10kg dumbbells overhead.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Standing Dumbbell Overhead Press">✨ Explain</button></div>
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">5. Superset: Curls & Extensions</h3><p class="text-sm text-stone-500 mb-3">Biceps & Triceps</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Sets:</span> 3</li><li><span class="font-semibold text-stone-700">Reps:</span> 12-15 each</li><li><span class="font-semibold text-stone-700">Tempo:</span> 3-0-1-0</li></ul><p class="text-sm text-stone-600 flex-grow">Perform Bicep Curls (2x 10kg) then immediately Overhead Triceps Extensions (1x 10kg).</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Bicep Curls and Overhead Triceps Extensions">✨ Explain</button></div>
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">6. Renegade Rows</h3><p class="text-sm text-stone-500 mb-3">Core & Upper Body</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Sets:</span> 3</li><li><span class="font-semibold text-stone-700">Reps:</span> 8-10 / arm</li><li><span class="font-semibold text-stone-700">Tempo:</span> Controlled</li></ul><p class="text-sm text-stone-600 flex-grow">Plank with hands on two 10kg dumbbells. Row one up to your side, keeping your body stable. Alternate arms.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Renegade Rows">✨ Explain</button></div>
+                            </div>
+                        </div>
+
+                        <!-- Day 2 Content -->
+                        <div id="day2" class="day-content hidden">
+                            <h2 class="text-2xl font-bold text-center mb-2">Day 2: Lower Body & Core Crusher</h2>
+                            <p class="text-center text-stone-600 mb-6"><strong>Equipment:</strong> Prioritize the <span class="font-bold text-yellow-700">18kg</span> dumbbell for heavy compound movements.</p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">1. Goblet Squats</h3><p class="text-sm text-stone-500 mb-3">Quads, Glutes, Core</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Weight:</span> 18kg</li><li><span class="font-semibold text-stone-700">Sets:</span> 4</li><li><span class="font-semibold text-stone-700">Reps:</span> 12-15</li><li><span class="font-semibold text-stone-700">Tempo:</span> 3-1-1-0</li></ul><p class="text-sm text-stone-600 flex-grow">Hold the dumbbell vertically against your chest. Squat down, keeping chest up and elbows inside knees.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Goblet Squats">✨ Explain</button></div>
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">2. Walking Lunges</h3><p class="text-sm text-stone-500 mb-3">Quads & Glutes</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Weight:</span> 18kg or 2x10kg</li><li><span class="font-semibold text-stone-700">Sets:</span> 4</li><li><span class="font-semibold text-stone-700">Reps:</span> 10-12 / leg</li><li><span class="font-semibold text-stone-700">Tempo:</span> 2-0-1-0</li></ul><p class="text-sm text-stone-600 flex-grow">Step forward into a lunge, bringing back knee close to the ground. Push off to step into the next lunge.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Walking Lunges">✨ Explain</button></div>
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">3. Romanian Deadlifts (RDLs)</h3><p class="text-sm text-stone-500 mb-3">Hamstrings & Glutes</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Weight:</span> 18kg</li><li><span class="font-semibold text-stone-700">Sets:</span> 3</li><li><span class="font-semibold text-stone-700">Reps:</span> 12-15</li><li><span class="font-semibold text-stone-700">Tempo:</span> 3-0-1-0</li></ul><p class="text-sm text-stone-600 flex-grow">Hold dumbbell with both hands. Hinge at hips, pushing glutes back and keeping back straight.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Romanian Deadlifts">✨ Explain</button></div>
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">4. Glute Bridges</h3><p class="text-sm text-stone-500 mb-3">Glutes & Hamstrings</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Weight:</span> 18kg</li><li><span class="font-semibold text-stone-700">Sets:</span> 3</li><li><span class="font-semibold text-stone-700">Reps:</span> 15-20</li><li><span class="font-semibold text-stone-700">Tempo:</span> 2-1-1-0</li></ul><p class="text-sm text-stone-600 flex-grow">Lie on your back, knees bent, feet flat. Place dumbbell across your hips. Lift hips, squeezing glutes at the top.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Glute Bridges">✨ Explain</button></div>
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">5. Standing Calf Raises</h3><p class="text-sm text-stone-500 mb-3">Calves</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Weight:</span> 18kg or 2x10kg</li><li><span class="font-semibold text-stone-700">Sets:</span> 3</li><li><span class="font-semibold text-stone-700">Reps:</span> 20-25</li><li><span class="font-semibold text-stone-700">Tempo:</span> 2-1-1-0</li></ul><p class="text-sm text-stone-600 flex-grow">Hold dumbbell(s) at your sides. Rise up onto the balls of your feet, then slowly lower for a full range of motion.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Standing Calf Raises">✨ Explain</button></div>
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">6. Core Circuit (3 Rounds)</h3><p class="text-sm text-stone-500 mb-3">Abs & Obliques</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Plank:</span> 60s hold</li><li><span class="font-semibold text-stone-700">Russian Twists:</span> 20-25 / side</li><li><span class="font-semibold text-stone-700">Leg Raises:</span> 15-20 reps</li></ul><p class="text-sm text-stone-600 flex-grow">Perform exercises back-to-back. Rest 60 seconds between each of the 3 rounds.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Core Circuit (Plank, Russian Twists, Leg Raises)">✨ Explain</button></div>
+                            </div>
+                        </div>
+
+                        <!-- Day 3 Content -->
+                        <div id="day3" class="day-content hidden">
+                            <h2 class="text-2xl font-bold text-center mb-2">Day 3: Full Body Metabolic Conditioning</h2>
+                            <p class="text-center text-stone-600 mb-6"><strong>Equipment:</strong> Favor the <span class="font-bold text-yellow-700">18kg</span> dumbbell for explosive movements.</p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">1. Dumbbell Thrusters</h3><p class="text-sm text-stone-500 mb-3">Full Body Explosiveness</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Weight:</span> 18kg</li><li><span class="font-semibold text-stone-700">Sets:</span> 4</li><li><span class="font-semibold text-stone-700">Reps:</span> 10-12</li><li><span class="font-semibold text-stone-700">Tempo:</span> Fluid, explosive</li></ul><p class="text-sm text-stone-600 flex-grow">Hold dumbbell goblet style. Squat down, then explosively stand up, pressing dumbbell overhead.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Dumbbell Thrusters">✨ Explain</button></div>
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">2. Dumbbell Swings</h3><p class="text-sm text-stone-500 mb-3">Posterior Chain & Cardio</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Weight:</span> 18kg</li><li><span class="font-semibold text-stone-700">Sets:</span> 4</li><li><span class="font-semibold text-stone-700">Reps:</span> 12-15</li><li><span class="font-semibold text-stone-700">Tempo:</span> Fluid, controlled</li></ul><p class="text-sm text-stone-600 flex-grow">Hinge at hips, swinging dumbbell between legs, then explode forward to swing it to chest height.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Dumbbell Swings">✨ Explain</button></div>
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">3. Mountain Climbers</h3><p class="text-sm text-stone-500 mb-3">Core & Cardio</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Sets:</span> 3</li><li><span class="font-semibold text-stone-700">Time:</span> 45-60 seconds</li></ul><p class="text-sm text-stone-600 flex-grow">In a plank position, drive knees towards chest, alternating legs, as if running in place.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Mountain Climbers">✨ Explain</button></div>
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">4. Dumbbell High Pulls</h3><p class="text-sm text-stone-500 mb-3">Shoulders, Back, Traps</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Weight:</span> 18kg or 2x10kg</li><li><span class="font-semibold text-stone-700">Sets:</span> 3</li><li><span class="font-semibold text-stone-700">Reps:</span> 10-12</li><li><span class="font-semibold text-stone-700">Tempo:</span> 2-0-1-0</li></ul><p class="text-sm text-stone-600 flex-grow">Pull dumbbell(s) up, leading with elbows, towards your chin. Keep them close to your body.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Dumbbell High Pulls">✨ Explain</button></div>
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">5. Side Plank</h3><p class="text-sm text-stone-500 mb-3">Obliques & Core Stability</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Sets:</span> 3</li><li><span class="font-semibold text-stone-700">Time:</span> 30-45s / side</li></ul><p class="text-sm text-stone-600 flex-grow">Support your body on one forearm and the side of your foot, keeping your body in a straight line.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Side Plank">✨ Explain</button></div>
+                            </div>
+                        </div>
+
+                        <!-- Day 4 Content -->
+                        <div id="day4" class="day-content hidden">
+                            <h2 class="text-2xl font-bold text-center mb-2">Day 4: Upper Body Volume & Isolation</h2>
+                            <p class="text-center text-stone-600 mb-6"><strong>Equipment:</strong> Use two 10kg dumbbells. Use the <span class="font-bold text-yellow-700">18kg</span> for Pullovers.</p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">1. Incline Floor Press</h3><p class="text-sm text-stone-500 mb-3">Upper Chest Focus</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Sets:</span> 4</li><li><span class="font-semibold text-stone-700">Reps:</span> 12-15</li><li><span class="font-semibold text-stone-700">Tempo:</span> 3-1-1-0</li></ul><p class="text-sm text-stone-600 flex-grow">Prop your upper back with a pillow to create an incline. Perform a floor press with two 10kg dumbbells.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Incline Floor Press">✨ Explain</button></div>
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">2. Dumbbell Pullovers</h3><p class="text-sm text-stone-500 mb-3">Chest & Lats</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Weight:</span> 18kg</li><li><span class="font-semibold text-stone-700">Sets:</span> 3</li><li><span class="font-semibold text-stone-700">Reps:</span> 12-15</li><li><span class="font-semibold text-stone-700">Tempo:</span> 3-0-1-0</li></ul><p class="text-sm text-stone-600 flex-grow">Lie on your back, hold one dumbbell with both hands. Lower it overhead, feeling the stretch, then pull back up.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Dumbbell Pullovers">✨ Explain</button></div>
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">3. Lateral Raises</h3><p class="text-sm text-stone-500 mb-3">Side Delts</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Weight:</span> 2-4kg each</li><li><span class="font-semibold text-stone-700">Sets:</span> 4</li><li><span class="font-semibold text-stone-700">Reps:</span> 15-20</li><li><span class="font-semibold text-stone-700">Tempo:</span> 3-0-1-0</li></ul><p class="text-sm text-stone-600 flex-grow">Use light weight for strict form. Lift dumbbells out to the sides until arms are parallel to the floor.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Lateral Raises">✨ Explain</button></div>
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">4. Front Raises</h3><p class="text-sm text-stone-500 mb-3">Front Delts</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Weight:</span> 2-4kg each</li><li><span class="font-semibold text-stone-700">Sets:</span> 3</li><li><span class="font-semibold text-stone-700">Reps:</span> 15-20</li><li><span class="font-semibold text-stone-700">Tempo:</span> 2-0-1-0</li></ul><p class="text-sm text-stone-600 flex-grow">Use light weight for strict form. Lift dumbbells straight forward to shoulder height.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Front Raises">✨ Explain</button></div>
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">5. Superset: Hammer Curls & Close-Grip Press</h3><p class="text-sm text-stone-500 mb-3">Biceps & Triceps</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Sets:</span> 3</li><li><span class="font-semibold text-stone-700">Reps:</span> 12-15 each</li><li><span class="font-semibold text-stone-700">Tempo:</span> 3-0-1-0</li></ul><p class="text-sm text-stone-600 flex-grow">Perform Hammer Curls then Close-Grip Floor Press, both with two 10kg dumbbells.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Hammer Curls and Close-Grip Floor Press">✨ Explain</button></div>
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">6. Plank to Push-up</h3><p class="text-sm text-stone-500 mb-3">Shoulders, Chest, Core</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Sets:</span> 3</li><li><span class="font-semibold text-stone-700">Reps:</span> 8-10</li></ul><p class="text-sm text-stone-600 flex-grow">Start in a plank. Push up to a push-up position, then lower back to plank. Alternate lead arm.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Plank to Push-up">✨ Explain</button></div>
+                            </div>
+                        </div>
+
+                        <!-- Day 5 Content -->
+                        <div id="day5" class="day-content hidden">
+                            <h2 class="text-2xl font-bold text-center mb-2">Day 5: Lower Body & Core Unilateral Focus</h2>
+                            <p class="text-center text-stone-600 mb-6"><strong>Equipment:</strong> Primarily use the <span class="font-bold text-yellow-700">18kg</span> dumbbell for single-leg work.</p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">1. Bulgarian Split Squats</h3><p class="text-sm text-stone-500 mb-3">Quads, Glutes, Balance</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Weight:</span> 18kg</li><li><span class="font-semibold text-stone-700">Sets:</span> 4</li><li><span class="font-semibold text-stone-700">Reps:</span> 8-12 / leg</li><li><span class="font-semibold text-stone-700">Tempo:</span> 3-1-1-0</li></ul><p class="text-sm text-stone-600 flex-grow">Place rear foot on a chair. Hold dumbbell in the opposite hand of your front leg. Lower into a lunge.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Bulgarian Split Squats">✨ Explain</button></div>
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">2. Single-Leg RDLs</h3><p class="text-sm text-stone-500 mb-3">Hamstrings, Glutes, Balance</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Weight:</span> 18kg</li><li><span class="font-semibold text-stone-700">Sets:</span> 3</li><li><span class="font-semibold text-stone-700">Reps:</span> 8-12 / leg</li><li><span class="font-semibold text-stone-700">Tempo:</span> 3-0-1-0</li></ul><p class="text-sm text-stone-600 flex-grow">Hold dumbbell in opposite hand of standing leg. Hinge at the hip, extending other leg back for balance.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Single-Leg Romanian Deadlifts">✨ Explain</button></div>
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">3. Step-Ups</h3><p class="text-sm text-stone-500 mb-3">Glutes & Quads</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Weight:</span> 18kg or 2x10kg</li><li><span class="font-semibold text-stone-700">Sets:</span> 3</li><li><span class="font-semibold text-stone-700">Reps:</span> 10-12 / leg</li></ul><p class="text-sm text-stone-600 flex-grow">Step onto a sturdy chair/box, driving through the heel. Step down and repeat.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Step-Ups">✨ Explain</button></div>
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">4. Dumbbell Good Mornings</h3><p class="text-sm text-stone-500 mb-3">Posterior Chain</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Weight:</span> 2-4kg</li><li><span class="font-semibold text-stone-700">Sets:</span> 3</li><li><span class="font-semibold text-stone-700">Reps:</span> 15-20</li><li><span class="font-semibold text-stone-700">Tempo:</span> 3-0-1-0</li></ul><p class="text-sm text-stone-600 flex-grow">Hold a light dumbbell at your chest. Hinge at your hips, keeping a slight bend in knees.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Dumbbell Good Mornings">✨ Explain</button></div>
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">5. Single-Leg Calf Raises</h3><p class="text-sm text-stone-500 mb-3">Calves & Balance</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Weight:</span> 10-18kg</li><li><span class="font-semibold text-stone-700">Sets:</span> 3</li><li><span class="font-semibold text-stone-700">Reps:</span> 15-20 / leg</li></ul><p class="text-sm text-stone-600 flex-grow">Perform calf raises on one leg at a time for increased challenge.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Single-Leg Calf Raises">✨ Explain</button></div>
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">6. Core Focus (3 Rounds)</h3><p class="text-sm text-stone-500 mb-3">Abs & Obliques</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Side Bends:</span> 15-20 / side (18kg)</li><li><span class="font-semibold text-stone-700">Bicycle Crunches:</span> 20-25 / side</li><li><span class="font-semibold text-stone-700">Hollow Hold:</span> 30-45s</li></ul><p class="text-sm text-stone-600 flex-grow">Perform exercises back-to-back. Minimal rest between exercises.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Side Bends, Bicycle Crunches, Hollow Hold">✨ Explain</button></div>
+                            </div>
+                        </div>
+
+                        <!-- Day 6 Content -->
+                        <div id="day6" class="day-content hidden">
+                            <h2 class="text-2xl font-bold text-center mb-2">Day 6: Full Body Metabolic Blast & Finisher</h2>
+                            <p class="text-center text-stone-600 mb-6"><strong>Equipment:</strong> Utilize the <span class="font-bold text-yellow-700">18kg</span> dumbbell for dynamic exercises.</p>
+                            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">1. Burpees w/ Push-up</h3><p class="text-sm text-stone-500 mb-3">Full Body Cardio & Strength</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Weight:</span> 2x10kg</li><li><span class="font-semibold text-stone-700">Sets:</span> 4</li><li><span class="font-semibold text-stone-700">Reps:</span> 8-10</li><li><span class="font-semibold text-stone-700">Tempo:</span> Explosive</li></ul><p class="text-sm text-stone-600 flex-grow">Perform a burpee, holding dumbbells for the push-up portion at the bottom. Stand up and jump.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Burpees with Dumbbell Push-up">✨ Explain</button></div>
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">2. Dumbbell Squat Jumps</h3><p class="text-sm text-stone-500 mb-3">Explosive Lower Body</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Weight:</span> 18kg</li><li><span class="font-semibold text-stone-700">Sets:</span> 3</li><li><span class="font-semibold text-stone-700">Reps:</span> 10-12</li></ul><p class="text-sm text-stone-600 flex-grow">Hold dumbbell in goblet position. Squat down and then explode upwards into a jump.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Dumbbell Squat Jumps">✨ Explain</button></div>
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">3. Alt. Dumbbell Snatches</h3><p class="text-sm text-stone-500 mb-3">Explosive Full Body</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Weight:</span> 18kg</li><li><span class="font-semibold text-stone-700">Sets:</span> 3</li><li><span class="font-semibold text-stone-700">Reps:</span> 6-8 / arm</li><li><span class="font-semibold text-stone-700">Tempo:</span> Explosive</li></ul><p class="text-sm text-stone-600 flex-grow">Explosively pull dumbbell from floor to overhead in one fluid motion. Control on the way down.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Alternating Dumbbell Snatches">✨ Explain</button></div>
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">4. Farmer's Carry</h3><p class="text-sm text-stone-500 mb-3">Grip Strength & Core</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Weight:</span> 2x10kg</li><li><span class="font-semibold text-stone-700">Sets:</span> 3</li><li><span class="font-semibold text-stone-700">Time:</span> 45-60s</li></ul><p class="text-sm text-stone-600 flex-grow">Hold heaviest dumbbells possible at your sides. Walk with good posture, keeping core tight.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Dumbbell Farmer's Carry">✨ Explain</button></div>
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">5. Dumbbell Plank Drags</h3><p class="text-sm text-stone-500 mb-3">Core Stability</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Weight:</span> 18kg</li><li><span class="font-semibold text-stone-700">Sets:</span> 3</li><li><span class="font-semibold text-stone-700">Reps:</span> 8-10 / side</li></ul><p class="text-sm text-stone-600 flex-grow">In plank, reach under your body and drag the dumbbell from one side to the other.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Dumbbell Plank Drags">✨ Explain</button></div>
+                                <div class="bg-white rounded-lg shadow p-6 flex flex-col"><h3 class="font-bold text-lg">6. FINISHER: Tabata</h3><p class="text-sm text-stone-500 mb-3">Metabolic Finisher</p><ul class="font-mono text-sm space-y-2 mb-4"><li><span class="font-semibold text-stone-700">Time:</span> 4 minutes</li><li><span class="font-semibold text-stone-700">Interval:</span> 20s work, 10s rest</li><li><span class="font-semibold text-stone-700">Rounds:</span> 8</li></ul><p class="text-sm text-stone-600 flex-grow">Choose a bodyweight exercise like Jumping Jacks, High Knees, or Bodyweight Squats.</p><button class="explain-exercise-btn mt-4 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Tabata Finisher">✨ Explain</button></div>
+                            </div>
+                        </div>
+
+                        <!-- Day 7 Content -->
+                        <div id="day7" class="day-content hidden">
+                           <div class="text-center py-16 px-6 bg-white rounded-lg shadow">
+                                <h2 class="text-2xl font-bold mb-4">Day 7: Active Recovery / Rest</h2>
+                                <p class="text-stone-600 max-w-2xl mx-auto mb-6">Today is about letting your body heal and prepare for the next week. Rest is not a sign of weakness; it's a critical part of getting stronger. Choose an option that feels best for you.</p>
+                                <ul class="text-left max-w-md mx-auto space-y-3">
+                                    <li class="flex items-start"><span class="text-yellow-600 font-bold mr-3">→</span><span><strong>Light Cardio:</strong> A brisk 30-45 minute walk or light cycle.</span></li>
+                                    <li class="flex items-start"><span class="text-yellow-600 font-bold mr-3">→</span><span><strong>Stretching & Mobility:</strong> Focus on static stretches (holding 20-30s) and mobility drills.</span></li>
+                                    <li class="flex items-start"><span class="text-yellow-600 font-bold mr-3">→</span><span><strong>Yoga/Pilates:</strong> A gentle session to improve flexibility and core stability.</span></li>
+                                    <li class="flex items-start"><span class="text-yellow-600 font-bold mr-3">→</span><span><strong>Complete Rest:</strong> If you feel truly fatigued, take a full day off. Listen to your body.</span></li>
+                                </ul>
+                                <button class="explain-exercise-btn mt-8 bg-gray-200 hover:bg-gray-300 text-gray-800 text-sm font-semibold py-2 px-4 rounded-full transition-colors duration-200" data-exercise="Active Recovery and Rest">✨ Explain</button>
+                           </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="info" class="tab-content hidden">
+                    <div class="space-y-8 max-w-4xl mx-auto">
+                        <div class="bg-white p-6 rounded-lg shadow">
+                            <h3 class="text-xl font-bold mb-3">Key Principles for Intensity</h3>
+                            <p class="text-stone-600 mb-4">Because the absolute weight is limited, we manufacture intensity through technique. This is how we make light weights feel heavy and drive progress.</p>
+                            <ul class="list-disc list-outside space-y-2 pl-5 text-stone-700">
+                                <li><strong>Tempo Training:</strong> Control the speed of every rep (e.g., 3 seconds lowering, 1 second lifting). This increases time under tension, a key driver for muscle growth.</li>
+                                <li><strong>High Repetitions:</strong> Working in higher rep ranges ($12-20+$) pushes muscular endurance and creates a metabolic environment conducive to growth.</li>
+                                <li><strong>Short Rest Periods:</strong> Resting only 30-60 seconds between sets keeps your heart rate elevated and muscles working, increasing the overall challenge.</li>
+                                <li><strong>Unilateral Work:</strong> Training one limb at a time forces your core to work harder to stabilize your body, turning every exercise into a core exercise.</li>
+                                <li><strong>Isometric Holds:</strong> Pausing at the most difficult part of a lift (e.g., the bottom of a squat) eliminates momentum and forces your muscles to work harder.</li>
+                            </ul>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow">
+                            <h3 class="text-xl font-bold mb-3">Warm-up & Cool-down</h3>
+                            <p class="text-stone-600 mb-4">Never skip these. A proper warm-up prevents injury and prepares your body for work. A cool-down aids recovery and improves flexibility.</p>
+                            <h4 class="font-semibold mb-2">Warm-up (5-10 minutes)</h4>
+                            <ul class="list-disc list-outside space-y-1 pl-5 text-stone-700 mb-4">
+                                <li>Light cardio (jumping jacks, high knees)</li>
+                                <li>Dynamic stretches (arm circles, leg swings, torso twists)</li>
+                                <li>Light dumbbell presses and arm circles to activate the target muscles.</li>
+                            </ul>
+                            <h4 class="font-semibold mb-2">Cool-down (5-10 minutes)</h4>
+                             <ul class="list-disc list-outside space-y-1 pl-5 text-stone-700">
+                                <li>Static stretches for all major muscle groups worked.</li>
+                                <li>Hold each stretch for 20-30 seconds. Do not bounce.</li>
+                            </ul>
+                        </div>
+                        <div class="bg-white p-6 rounded-lg shadow">
+                            <h3 class="text-xl font-bold mb-3">How to Progress</h3>
+                            <p class="text-stone-600 mb-4">To keep getting stronger, you must consistently challenge yourself. This is called Progressive Overload. Since you can't always add more weight, use these methods:</p>
+                             <ul class="list-disc list-outside space-y-2 pl-5 text-stone-700">
+                                <li><strong>Increase Reps:</strong> Once you can comfortably complete the target reps for all sets, aim for 1-2 more reps per set next time.</li>
+                                <li><strong>Increase Sets:</strong> Add an extra set to one or two exercises in your workout.</li>
+                                <li><strong>Reduce Rest:</strong> Shave 5-10 seconds off your rest periods between sets.</li>
+                                <li><strong>Slow Down Tempo:</strong> Increase the eccentric (lowering) phase to 4 or 5 seconds.</li>
+                                <li><strong>Add Holds:</strong> Add a 2-3 second pause at the most challenging point of the exercise.</li>
+                             </ul>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Modal for Exercise Explanation -->
+    <div id="explanation-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h3 id="modal-exercise-title" class="text-xl font-bold mb-4"></h3>
+            <div id="modal-explanation-content" class="text-stone-700">
+                <div class="text-center">
+                    <div class="spinner-border animate-spin inline-block w-8 h-8 border-4 rounded-full border-yellow-500 border-r-transparent" role="status">
+                        <span class="visually-hidden"></span>
+                    </div>
+                    <p class="mt-2 text-stone-600">Generating explanation...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const tabButtons = document.querySelectorAll('.tab-btn');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const dayButtons = document.querySelectorAll('.day-btn');
+        const dayContents = document.querySelectorAll('.day-content');
+        const explainButtons = document.querySelectorAll('.explain-exercise-btn');
+        const getTipButton = document.getElementById('get-tip-btn');
+        const fitnessTipDisplay = document.getElementById('fitness-tip-display');
+        const explanationModal = document.getElementById('explanation-modal');
+        const closeModalButton = explanationModal.querySelector('.close-button');
+        const modalExerciseTitle = document.getElementById('modal-exercise-title');
+        const modalExplanationContent = document.getElementById('modal-explanation-content');
+        const themeToggle = document.getElementById('theme-toggle');
+        const themeIcon = document.getElementById('theme-icon');
+        const themeText = document.getElementById('theme-text');
+
+        const setActiveTab = (targetId) => {
+            tabButtons.forEach(btn => {
+                if (btn.dataset.tabTarget === targetId) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            tabContents.forEach(content => {
+                if (content.id === targetId) {
+                    content.classList.remove('hidden');
+                } else {
+                    content.classList.add('hidden');
+                }
+            });
+        };
+
+        const setActiveDay = (targetId) => {
+            dayButtons.forEach(btn => {
+                if (btn.dataset.dayTarget === targetId) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+            dayContents.forEach(content => {
+                if (content.id === `day${targetId}`) {
+                    content.classList.remove('hidden');
+                } else {
+                    content.classList.add('hidden');
+                }
+            });
+        };
+
+        const applyTheme = (isDarkMode) => {
+            if (isDarkMode) {
+                document.body.classList.add('dark-mode');
+                themeIcon.textContent = '🌙';
+                themeText.textContent = 'Night Mode';
+            } else {
+                document.body.classList.remove('dark-mode');
+                themeIcon.textContent = '☀️';
+                themeText.textContent = 'Day Mode';
+            }
+        };
+
+        const callGeminiAPI = async (prompt) => {
+            const loadingIndicator = `<div class="text-center"><div class="spinner-border animate-spin inline-block w-8 h-8 border-4 rounded-full border-yellow-500 border-r-transparent" role="status"></div><p class="mt-2 text-stone-600">Generating...</p></div>`;
+            if (modalExplanationContent.parentElement.style.display === 'flex') {
+                modalExplanationContent.innerHTML = loadingIndicator;
+            } else {
+                fitnessTipDisplay.innerHTML = loadingIndicator;
+            }
+
+            let chatHistory = [];
+            chatHistory.push({ role: "user", parts: [{ text: prompt }] });
+            const payload = { contents: chatHistory };
+            const apiKey = "";
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                if (result.candidates && result.candidates.length > 0 &&
+                    result.candidates[0].content && result.candidates[0].content.parts &&
+                    result.candidates[0].content.parts.length > 0) {
+                    return result.candidates[0].content.parts[0].text;
+                } else {
+                    console.error("Gemini API response structure unexpected:", result);
+                    return "Error: Could not retrieve information. Please try again.";
+                }
+            } catch (error) {
+                console.error("Error calling Gemini API:", error);
+                return "Error: Failed to connect to AI. Please check your network.";
+            }
+        };
+
+        explainButtons.forEach(button => {
+            button.addEventListener('click', async () => {
+                const exerciseName = button.dataset.exercise;
+                modalExerciseTitle.textContent = exerciseName;
+                explanationModal.style.display = 'flex';
+                const explanation = await callGeminiAPI(`Explain the exercise "${exerciseName}", including its benefits, common mistakes to avoid, and common variations. Format as a clear, concise text explanation.`);
+                modalExplanationContent.innerHTML = `<p>${explanation.replace(/\n/g, '<br>')}</p>`;
+            });
+        });
+
+        closeModalButton.addEventListener('click', () => {
+            explanationModal.style.display = 'none';
+        });
+
+        window.addEventListener('click', (event) => {
+            if (event.target === explanationModal) {
+                explanationModal.style.display = 'none';
+            }
+        });
+
+        getTipButton.addEventListener('click', async () => {
+            fitnessTipDisplay.textContent = 'Generating a tip...';
+            const tip = await callGeminiAPI("Give a short, inspiring fitness tip or motivational quote for dumbbell workouts. Keep it concise, 1-2 sentences.");
+            fitnessTipDisplay.innerHTML = `<p class="italic">"${tip}"</p>`;
+        });
+
+        themeToggle.addEventListener('click', () => {
+            const isDarkMode = document.body.classList.contains('dark-mode');
+            applyTheme(!isDarkMode);
+            localStorage.setItem('theme', !isDarkMode ? 'dark' : 'light');
+        });
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                setActiveTab(button.dataset.tabTarget);
+            });
+        });
+
+        dayButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                setActiveDay(button.dataset.dayTarget);
+            });
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme) {
+                applyTheme(savedTheme === 'dark');
+            } else {
+                const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                applyTheme(prefersDark);
+            }
+            setActiveTab('workouts');
+            setActiveDay('1');
+        });
+    </script>
+</body>
+</html>
